@@ -4,11 +4,13 @@ const mul = (sum: number, matches: RegExpExecArray) =>
   sum + parseInt(matches[1]) * parseInt(matches[2]);
 
 const part1 = (rawInput: string) =>
-  [...rawInput.matchAll(/mul\((\d+),(\d+)\)/gs)].reduce(mul, 0);
+  [...rawInput.matchAll(/mul\((\d{1,3}),(\d{1,3})\)/gs)].reduce(mul, 0);
 
 const part2 = (rawInput: string) =>
   [
-    ...rawInput.matchAll(/(?<!don't\(\)(?:(?!do\(\)).)*)mul\((\d+),(\d+)\)/gs),
+    ...rawInput.matchAll(
+      /(?<!don't\(\)(?:(?!do\(\)).)*)mul\((\d{1,3}),(\d{1,3})\)/gs,
+    ),
   ].reduce(mul, 0);
 
 run({
