@@ -6,7 +6,7 @@ interface Guard {
   y: number;
 }
 
-const parseInput = (rawInput: string) => {
+const runRoute = (rawInput: string) => {
   const grid = rawInput.split("\n").map((line) => line.split(""));
   const guardPosition = rawInput.indexOf("^");
   const guard: Guard = {
@@ -29,41 +29,31 @@ const parseInput = (rawInput: string) => {
   const history: Guard["orientation"][][][] = [...new Array(grid.length)].map(
     (_) => [...new Array(grid[0].length)].map((_) => []),
   );
-  const runRoute = () => {
-    while (
-      guard.x >= 0 &&
-      guard.x < grid[0].length &&
-      guard.y >= 0 &&
-      guard.y < grid.length
-    ) {
-      if (history[guard.y][guard.x].includes(guard.orientation)) {
-        return false;
-      }
-      history[guard.y][guard.x].push(guard.orientation);
-      grid[guard.y][guard.x] = "X";
-      const [nextX, nextY] = nextStep[guard.orientation]();
-      if (grid[nextY]?.[nextX] === "#") {
-        guard.orientation = turn[guard.orientation];
-      } else {
-        guard.x = nextX;
-        guard.y = nextY;
-      }
+
+  while (
+    guard.x >= 0 &&
+    guard.x < grid[0].length &&
+    guard.y >= 0 &&
+    guard.y < grid.length
+  ) {
+    if (history[guard.y][guard.x].includes(guard.orientation)) {
+      return false;
     }
-    return grid;
-  };
-  return {
-    grid,
-    guard,
-    nextStep,
-    turn,
-    history,
-    runRoute,
-  };
+    history[guard.y][guard.x].push(guard.orientation);
+    grid[guard.y][guard.x] = "X";
+    const [nextX, nextY] = nextStep[guard.orientation]();
+    if (grid[nextY]?.[nextX] === "#") {
+      guard.orientation = turn[guard.orientation];
+    } else {
+      guard.x = nextX;
+      guard.y = nextY;
+    }
+  }
+  return grid;
 };
 
 const part1 = (rawInput: string) => {
-  const { runRoute } = parseInput(rawInput);
-  const grid = runRoute();
+  const grid = runRoute(rawInput);
   if (!grid) {
     throw new Error("Unexpected loop");
   }
@@ -73,15 +63,20 @@ const part1 = (rawInput: string) => {
 
 const part2 = (rawInput: string) => {
   let loops = 0;
-  for (let index = 0; index < rawInput.length; index++) {
-    const character = rawInput.charAt(index);
-    if (["#", "^", "\n"].includes(character)) {
+  const baselineGrid = runRoute(rawInput);
+  if (!baselineGrid) {
+    throw new Error("Unexpected loop");
+  }
+  const baseline = baselineGrid.map((line) => line.join("")).join("\n");
+  for (let index = 0; index < baseline.length; index++) {
+    const character = baseline.charAt(index);
+    if (character !== "X") {
       continue;
     }
-    const { runRoute } = parseInput(
+    const result = runRoute(
       rawInput.substring(0, index) + "#" + rawInput.substring(index + 1),
     );
-    if (runRoute() === false) {
+    if (result === false) {
       loops++;
     }
   }
