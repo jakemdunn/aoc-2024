@@ -26,18 +26,21 @@ const parseInput = (
 };
 
 const part1 = (rawInput: string) => {
-  return parseInput(rawInput, (options, number) => [
-    ...options.map((option) => option * number),
-    ...options.map((option) => option + number),
-  ]);
+  return parseInput(rawInput, (options, number) =>
+    options.map((option) => [option * number, option + number]).flat(),
+  );
 };
 
 const part2 = (rawInput: string) => {
-  return parseInput(rawInput, (options, number) => [
-    ...options.map((option) => option * number),
-    ...options.map((option) => option + number),
-    ...options.map((option) => parseInt(`${option}${number}`)),
-  ]);
+  return parseInput(rawInput, (options, number) =>
+    options
+      .map((option) => [
+        option * number,
+        option + number,
+        parseInt(`${option}${number}`),
+      ])
+      .flat(),
+  );
 };
 
 const input = `190: 10 19
