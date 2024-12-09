@@ -9,11 +9,14 @@ const parseInput = (rawInput: string) =>
 const part1 = (rawInput: string) => {
   const input = parseInput(rawInput);
   let checksum = 0;
-  for (let index = 0; index < input.length; index++) {
-    while (input[index] === undefined && index < input.length) {
-      input[index] = input.pop();
+  let upperBound = input.length;
+  for (let index = 0; index < upperBound; index++) {
+    let current = input[index];
+    while (current === undefined && index < upperBound) {
+      current = input[upperBound - 1];
+      upperBound--;
     }
-    checksum += index * (input[index] ?? 0);
+    checksum += index * (current ?? 0);
   }
   return checksum;
 };
