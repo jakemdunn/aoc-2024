@@ -35,9 +35,9 @@ const parseInput = (rawInput: string, offset: Offset = { x: 0, y: 0 }) => {
     const aPresses = (x - b.x * bPresses) / a.x;
     if (
       aPresses > 0 &&
-      Math.round(aPresses) === aPresses &&
+      Math.floor(aPresses) === aPresses &&
       bPresses > 0 &&
-      Math.round(bPresses) === bPresses
+      Math.floor(bPresses) === bPresses
     ) {
       return sum + bPresses * cost.b + aPresses * cost.a;
     }
@@ -79,7 +79,7 @@ run({
     tests: [
       {
         input,
-        expected: 480,
+        expected: 875318608908,
       },
     ],
     solution: part2,
