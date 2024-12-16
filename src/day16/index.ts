@@ -7,6 +7,12 @@ interface Point {
 }
 
 type Orientation = "N" | "S" | "E" | "W";
+const oppositeOrientation: Record<Orientation, Orientation> = {
+  N: "S",
+  S: "N",
+  W: "E",
+  E: "W",
+};
 const orientations = ["N", "S", "E", "W"] as Orientation[];
 
 type EntityType = "start" | "end" | "path" | "wall";
@@ -24,14 +30,10 @@ interface Node extends Point {
   orientation: Orientation;
   options?: Map<Node, number>;
   history?: Node[];
+  tunneled: number;
+  sources: Set<Node>;
 }
 
-const oppositeOrientation: Record<Orientation, Orientation> = {
-  N: "S",
-  S: "N",
-  W: "E",
-  E: "W",
-};
 const movement: Record<Orientation, (source: Point) => Point> = {
   N: ({ x, y }) => ({ x, y: y - 1 }),
   S: ({ x, y }) => ({ x, y: y + 1 }),
@@ -113,6 +115,7 @@ const parseInput = memo((rawInput: string) => {
   }: Pick<Node, "x" | "y" | "orientation">) => `${x},${y},${orientation}`;
 
   const graph = new Map<string, Node>();
+  const tunnels = new Set<Node>();
   const getOptions = (sourceNode: Node) => {
     const newNodes: Node[] = [];
     sourceNode.options = orientations.reduce<Map<Node, number>>(
@@ -135,20 +138,35 @@ const parseInput = memo((rawInput: string) => {
             x,
             y,
             orientation,
+            sources: new Set([sourceNode]),
+            tunneled: 0,
           });
           newNodes.push(graph.get(key)!);
+        } else {
+          const existing = graph.get(key)!;
+          existing.sources.add(sourceNode);
         }
         nodes.set(graph.get(key)!, distance);
         return nodes;
       },
       new Map(),
     );
+    if (
+      sourceNode.options.size === 1 &&
+      grid[sourceNode.y][sourceNode.x].type === "path" &&
+      sourceNode.options.keys().next().value?.orientation ===
+        sourceNode.orientation
+    ) {
+      tunnels.add(sourceNode);
+    }
     return newNodes;
   };
 
   const startNode: Node = {
     ...startEntity,
     orientation: "E",
+    sources: new Set(),
+    tunneled: 0,
   };
   graph.set(getKey(startNode), startNode);
 
@@ -158,6 +176,18 @@ const parseInput = memo((rawInput: string) => {
       return [...nextNodes, ...getOptions(node)];
     }, []);
   }
+
+  tunnels.forEach((node) => {
+    node.sources.forEach((source) => {
+      const previousDistance = source.options!.get(node)!;
+      const [next, nextDistance] = [...node.options!.entries()][0];
+      source.options?.set(next, previousDistance + nextDistance);
+      source.options?.delete(node);
+      next.sources.add(source);
+      next.tunneled = node.tunneled + 1;
+    });
+    graph.delete(getKey(node));
+  });
 
   const endNodes = orientations.reduce<Node[]>(
     (nodes, orientation) => [
@@ -177,7 +207,10 @@ const part1 = (rawInput: string) => {
 
 const part2 = (rawInput: string) => {
   const { shortest, grid } = parseInput(rawInput);
-  return new Set(shortest.history?.map(({ x, y }) => grid[y][x])).size;
+  const nodes = new Set(shortest.history);
+  const entities = new Set(shortest.history?.map(({ x, y }) => grid[y][x]));
+  const tunneled = [...nodes].reduce((sum, node) => sum + node.tunneled, 0);
+  return tunneled + entities.size;
 };
 
 const input = `###############
@@ -202,6 +235,26 @@ run({
       {
         input,
         expected: 7036,
+      },
+      {
+        input: `#################
+#...#...#...#..E#
+#.#.#.#.#.#.#.#.#
+#.#.#.#...#...#.#
+#.#.#.#.###.#.#.#
+#...#.#.#.....#.#
+#.#.#.#.#.#####.#
+#.#...#.#.#.....#
+#.#.#####.#.###.#
+#.#.#.......#...#
+#.#.###.#####.###
+#.#.#...#.....#.#
+#.#.#.#####.###.#
+#.#.#.........#.#
+#.#.#.#########.#
+#S#.............#
+#################`,
+        expected: 11048,
       },
     ],
     solution: part1,
