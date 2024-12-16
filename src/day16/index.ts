@@ -26,14 +26,18 @@ interface Node extends Point {
   history?: Node[];
 }
 
+const oppositeOrientation: Record<Orientation, Orientation> = {
+  N: "S",
+  S: "N",
+  W: "E",
+  E: "W",
+};
 const movement: Record<Orientation, (source: Point) => Point> = {
   N: ({ x, y }) => ({ x, y: y - 1 }),
   S: ({ x, y }) => ({ x, y: y + 1 }),
   E: ({ x, y }) => ({ x: x + 1, y }),
   W: ({ x, y }) => ({ x: x - 1, y }),
 };
-
-const getKey = (node: Node) => `${node.x},${node.y},${node.orientation}`;
 
 const dijkstra = (
   graph: Map<string, Node>,
@@ -102,11 +106,19 @@ const parseInput = memo((rawInput: string) => {
     }),
   );
 
+  const getKey = ({
+    x,
+    y,
+    orientation,
+  }: Pick<Node, "x" | "y" | "orientation">) => `${x},${y},${orientation}`;
+
   const graph = new Map<string, Node>();
   const getOptions = (sourceNode: Node) => {
     const newNodes: Node[] = [];
     sourceNode.options = orientations.reduce<Map<Node, number>>(
       (nodes, orientation) => {
+        if (oppositeOrientation[sourceNode.orientation] === orientation)
+          return nodes;
         const { x, y } = movement[orientation](sourceNode);
         const entity = grid[y]?.[x];
         if (entity.type === "wall") return nodes;
