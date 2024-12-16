@@ -104,7 +104,6 @@ const parseInput = (rawInput: string) => {
           entity.current = entity.destination;
           entity.current.forEach(({ x, y }) => (grid[y][x] = entity));
         });
-        // outputGrid();
         return;
       }
       moving.push([...nextGroup.values()]);
