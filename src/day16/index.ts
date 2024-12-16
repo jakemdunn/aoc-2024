@@ -8,204 +8,164 @@ interface Point {
 
 type Orientation = "N" | "S" | "E" | "W";
 const orientations = ["N", "S", "E", "W"] as Orientation[];
-interface Pose {
-  orientation: Orientation;
-  distance: number;
-  node?: Node;
-  previous?: Pose[];
-}
 
-type NodeType = "start" | "end" | "path" | "wall";
-const nodeTypeSymbols: Record<string, NodeType> = {
+type EntityType = "start" | "end" | "path" | "wall";
+const entityTypeSymbols: Record<string, EntityType> = {
   "#": "wall",
   ".": "path",
   S: "start",
   E: "end",
 };
-interface Node extends Point {
-  type: NodeType;
+interface Entity extends Point {
+  type: EntityType;
 }
 
-const parseInput = (rawInput: string) => {
-  let start = {} as Node,
-    end = {} as Node;
-  const grid = rawInput.split("\n").map((line, y) =>
-    line.split("").map<Node>((symbol, x) => {
-      const node: Node = {
-        type: nodeTypeSymbols[symbol],
-        x,
-        y,
-      };
-      if (node.type === "start") start = node;
-      if (node.type === "end") end = node;
-      return node;
-    }),
-  );
-  return { grid, start, end };
+interface Node extends Point {
+  orientation: Orientation;
+  options?: Map<Node, number>;
+  history?: Node[];
+}
+
+const movement: Record<Orientation, (source: Point) => Point> = {
+  N: ({ x, y }) => ({ x, y: y - 1 }),
+  S: ({ x, y }) => ({ x, y: y + 1 }),
+  E: ({ x, y }) => ({ x: x + 1, y }),
+  W: ({ x, y }) => ({ x: x - 1, y }),
 };
 
-const dijkstra = (grid: Node[][], startNode: Node, endNode: Node) => {
-  const distances = new Map<Node, Record<Orientation, Pose>>();
-  const previousNodes = {};
-  const visited = new Map<Node, Record<Orientation, boolean>>();
-  const allNodes = grid.flat(1).filter(({ type }) => type !== "wall");
+const getKey = (node: Node) => `${node.x},${node.y},${node.orientation}`;
 
-  const movement: Record<Orientation, (source: Point) => Point> = {
-    N: ({ x, y }) => ({ x, y: y - 1 }),
-    S: ({ x, y }) => ({ x, y: y + 1 }),
-    E: ({ x, y }) => ({ x: x + 1, y }),
-    W: ({ x, y }) => ({ x: x - 1, y }),
-  };
-  type Option = { node: Node; pose: Pose };
-  const getOptions = (sourceNode: Node, sourcePose: Pose): Option[] => {
-    return orientations.reduce<Option[]>((nodes, orientation) => {
-      const { x, y } = movement[orientation](sourceNode);
-      const node = grid[y]?.[x];
-      if (node.type === "wall") return nodes;
-      const distance =
-        (["N", "S"].includes(sourcePose.orientation) &&
-          ["E", "W"].includes(orientation)) ||
-        (["E", "W"].includes(sourcePose.orientation) &&
-          ["N", "S"].includes(orientation))
-          ? 1001
-          : 1;
-      return [
-        ...nodes,
-        {
-          node,
-          pose: {
-            distance,
-            orientation,
-          },
-        },
-      ];
-    }, []);
-  };
+const dijkstra = (
+  graph: Map<string, Node>,
+  startNode: Node,
+  endNodes: Node[],
+) => {
+  const distances = new Map<Node, number>();
+  const visited = new Set<Node>();
+  const allNodes = [...graph.values()];
 
-  allNodes.forEach((node) =>
-    distances.set(
-      node,
-      orientations.reduce((result, orientation) => {
-        return {
-          ...result,
-          [orientation]: { orientation, distance: Infinity },
-        };
-      }, {}) as Record<Orientation, Pose>,
-    ),
-  );
-  distances.set(startNode, {
-    ...distances.get(startNode)!,
-    E: { orientation: "E", distance: 0 },
-  });
+  allNodes.forEach((node) => distances.set(node, Infinity));
+  distances.set(startNode, 0);
+  startNode.history = [startNode];
 
-  while (!visited.has(endNode)) {
+  while (!endNodes.some((node) => visited.has(node))) {
     let currentNode: Node | undefined = undefined;
-    let currentPose: Pose = { orientation: "E", distance: Infinity };
+    let currentDistance = Infinity;
 
     allNodes.forEach((node) => {
-      orientations.forEach((orientation) => {
-        if (
-          !visited.get(node)?.[orientation] &&
-          distances.get(node)![orientation].distance < currentPose.distance
-        ) {
-          currentNode = node;
-          currentPose = distances.get(node)![orientation];
-        }
-      });
+      if (!visited.has(node) && distances.get(node)! < currentDistance) {
+        currentNode = node;
+        currentDistance = distances.get(node)!;
+      }
     });
 
     if (!currentNode) {
       break;
     }
 
-    visited.set(currentNode, {
-      ...(visited.get(currentNode) ?? {}),
-      [currentPose.orientation]: true,
-    } as Record<Orientation, boolean>);
-
-    const options = getOptions(currentNode, currentPose);
-    options.forEach((option) => {
-      const distance = currentPose.distance + option.pose.distance;
-      const existingPose = distances.get(option.node)![option.pose.orientation];
-      if (distance < existingPose.distance) {
-        distances.set(option.node, {
-          ...distances.get(option.node)!,
-          [option.pose.orientation]: {
-            ...option.pose,
-            distance,
-            node: currentNode,
-            previous: [currentPose],
-          },
-        });
-      } else if (distance === existingPose.distance) {
-        distances.set(option.node, {
-          ...distances.get(option.node)!,
-          [option.pose.orientation]: {
-            ...existingPose,
-            previous: [...(existingPose.previous ?? []), currentPose],
-          },
-        });
+    visited.add(currentNode as Node);
+    (currentNode as Node).options?.forEach((localDistance, node) => {
+      const distance = currentDistance + localDistance;
+      if (distance < distances.get(node)!) {
+        distances.set(node, distance);
+        node.history = [...(currentNode?.history ?? []), node];
+      } else if (distance === distances.get(node)!) {
+        node.history = [
+          ...(currentNode?.history ?? []),
+          ...(node?.history ?? []),
+          node,
+        ];
       }
     });
   }
 
-  return { distances, previousNodes };
+  const shortest = endNodes.sort(
+    (a, b) => distances.get(a)! - distances.get(b)!,
+  )[0];
+
+  return { distances, shortest };
 };
 
+const parseInput = memo((rawInput: string) => {
+  let startEntity = {} as Entity,
+    endEntity = {} as Entity;
+  const grid = rawInput.split("\n").map((line, y) =>
+    line.split("").map<Entity>((symbol, x) => {
+      const node: Entity = {
+        type: entityTypeSymbols[symbol],
+        x,
+        y,
+      };
+      if (node.type === "start") startEntity = node;
+      if (node.type === "end") endEntity = node;
+      return node;
+    }),
+  );
+
+  const graph = new Map<string, Node>();
+  const getOptions = (sourceNode: Node) => {
+    const newNodes: Node[] = [];
+    sourceNode.options = orientations.reduce<Map<Node, number>>(
+      (nodes, orientation) => {
+        const { x, y } = movement[orientation](sourceNode);
+        const entity = grid[y]?.[x];
+        if (entity.type === "wall") return nodes;
+        const key = getKey({ x, y, orientation });
+        const distance =
+          (["N", "S"].includes(sourceNode.orientation) &&
+            ["E", "W"].includes(orientation)) ||
+          (["E", "W"].includes(sourceNode.orientation) &&
+            ["N", "S"].includes(orientation))
+            ? 1001
+            : 1;
+        if (!graph.has(key)) {
+          graph.set(key, {
+            x,
+            y,
+            orientation,
+          });
+          newNodes.push(graph.get(key)!);
+        }
+        nodes.set(graph.get(key)!, distance);
+        return nodes;
+      },
+      new Map(),
+    );
+    return newNodes;
+  };
+
+  const startNode: Node = {
+    ...startEntity,
+    orientation: "E",
+  };
+  graph.set(getKey(startNode), startNode);
+
+  let currentPaint: Node[] = [startNode];
+  while (currentPaint.length > 0) {
+    currentPaint = currentPaint.reduce<Node[]>((nextNodes, node) => {
+      return [...nextNodes, ...getOptions(node)];
+    }, []);
+  }
+
+  const endNodes = orientations.reduce<Node[]>(
+    (nodes, orientation) => [
+      ...nodes,
+      graph.get(getKey({ ...endEntity, orientation }))!,
+    ],
+    [],
+  );
+
+  return { ...dijkstra(graph, startNode, endNodes), grid };
+});
+
 const part1 = (rawInput: string) => {
-  const { grid, start, end } = parseInput(rawInput);
-  const { distances } = dijkstra(grid, start, end);
-  return Object.values(distances.get(end)!).sort(
-    (a, b) => a.distance - b.distance,
-  )[0].distance;
+  const { distances, shortest } = parseInput(rawInput);
+  return distances.get(shortest);
 };
 
 const part2 = (rawInput: string) => {
-  const { grid, start, end } = parseInput(rawInput);
-  const { distances } = dijkstra(grid, start, end);
-  const shortest = (poses: Record<Orientation, Pose>) => {
-    return Object.values(poses).sort((a, b) => a.distance - b.distance)[0];
-  };
-  const endPose = shortest(distances.get(end)!);
-  const poseHistory = new Set<Pose>();
-  const nodeHistory = new Set<Node>();
-  let currentPoses = [endPose];
-  while (currentPoses.length) {
-    currentPoses = currentPoses.reduce<Pose[]>((next, pose) => {
-      nodeHistory.add(pose.node!);
-      poseHistory.add(pose);
-      // console.log(pose.previous?.length);
-      return pose.previous ? [...next, ...pose.previous] : next;
-    }, []);
-  }
-  // console.log(distances.get(grid[9][3]));
-  // console.log(
-  //   grid
-  //     .map((line) =>
-  //       line
-  //         .map((node) => {
-  //           // if (!nodeHistory.has(node)) {
-  //           //   return node.type === "wall" ? "#--#" : "....";
-  //           // }
-  //           if (!distances.get(node)) {
-  //             return node.type === "wall" ? "#---#" : ".....";
-  //           }
-  //           const pose = shortest(distances.get(node)!);
-  //           if (pose.distance === Infinity) {
-  //             return ".....";
-  //           }
-  //           // const pose = distances.get(node);
-  //           // if (!pose || !endPose.history?.includes(node)) {
-  //           //   return node.type === "wall" ? "#--#" : "....";
-  //           // }
-  //           return pose.orientation + pose.distance.toString().padStart(4, "0");
-  //         })
-  //         .join("|"),
-  //     )
-  //     .join("\n"),
-  // );
-  // console.log(endPose.history);
-  return nodeHistory.size;
+  const { shortest, grid } = parseInput(rawInput);
+  return new Set(shortest.history?.map(({ x, y }) => grid[y][x])).size;
 };
 
 const input = `###############
