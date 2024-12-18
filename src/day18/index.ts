@@ -1,51 +1,5 @@
 import run from "aocrunner";
-
-interface Point {
-  x: number;
-  y: number;
-}
-
-interface Node extends Point {
-  options?: Map<Node, number>;
-  history?: Node[];
-}
-
-const dijkstra = (graph: Map<string, Node>, startNode: Node, endNode: Node) => {
-  const distances = new Map<Node, number>();
-  const visited = new Set<Node>();
-  const allNodes = [...graph.values()];
-
-  allNodes.forEach((node) => distances.set(node, Infinity));
-  distances.set(startNode, 0);
-  startNode.history = [startNode];
-
-  while (!visited.has(endNode)) {
-    let currentNode: Node | undefined = undefined;
-    let currentDistance = Infinity;
-
-    allNodes.forEach((node) => {
-      if (!visited.has(node) && distances.get(node)! < currentDistance) {
-        currentNode = node;
-        currentDistance = distances.get(node)!;
-      }
-    });
-
-    if (!currentNode) {
-      break;
-    }
-
-    visited.add(currentNode as Node);
-    (currentNode as Node).options?.forEach((localDistance, node) => {
-      const distance = currentDistance + localDistance;
-      if (distance < distances.get(node)!) {
-        distances.set(node, distance);
-        node.history = [...(currentNode?.history ?? []), node];
-      }
-    });
-  }
-
-  return { distances };
-};
+import { Point, Node, dijkstra, getHistory } from "../utils/dijkstra.js";
 
 const parseInput = (rawInput: string) => {
   const parts = rawInput.split("\n\n");
@@ -77,7 +31,7 @@ const createGraph = (width: number, height: number, bytes: Point[]) => {
   const graph = new Map<string, Node>();
   const getOptions = (sourceNode: Node) => {
     const newNodes: Node[] = [];
-    sourceNode.options = movements.reduce<Map<Node, number>>(
+    sourceNode.neighbors = movements.reduce<Map<Node, number>>(
       (nodes, movement) => {
         const { x, y } = movement(sourceNode);
         const key = getKey({ x, y });
@@ -133,31 +87,29 @@ const part2 = (rawInput: string) => {
     height,
     bytes.slice(0, nanoseconds),
   );
+  dijkstra(graph, startNode, endNode);
+  let history = getHistory(endNode);
 
   const remainingBytes = bytes.slice(nanoseconds).map(getKey);
-  let corruptedByteKey = getKey(bytes[0]);
-  while (remainingBytes.length) {
-    const { distances } = dijkstra(graph, startNode, endNode);
-    if (distances.get(endNode) === Infinity) {
-      return corruptedByteKey;
+  for (let index = 0; index < remainingBytes.length; index++) {
+    const corruptedByteKey = remainingBytes[index];
+    const corruptedNode = graph.get(corruptedByteKey);
+
+    if (!corruptedNode) continue;
+
+    graph.delete(corruptedByteKey);
+    movements.forEach((movement) => {
+      const adjacentKey = getKey(movement(corruptedNode));
+      graph.get(adjacentKey)?.neighbors?.delete(corruptedNode);
+    });
+
+    if (history.has(corruptedNode)) {
+      const { distances } = dijkstra(graph, startNode, endNode);
+      if (distances.get(endNode) === Infinity) {
+        return corruptedByteKey;
+      }
+      history = getHistory(endNode);
     }
-
-    const blockers = endNode
-      .history!.filter((node) => remainingBytes.includes(getKey(node)))
-      .map(getKey);
-
-    do {
-      corruptedByteKey = remainingBytes.shift()!;
-
-      const corruptedNode = graph.get(corruptedByteKey);
-      if (!corruptedNode) continue;
-
-      graph.delete(corruptedByteKey);
-      movements.forEach((movement) => {
-        const adjacentKey = getKey(movement(corruptedNode));
-        graph.get(adjacentKey)?.options?.delete(corruptedNode);
-      });
-    } while (!blockers.includes(corruptedByteKey) && remainingBytes.length);
   }
 
   return;
