@@ -9,6 +9,8 @@ export const memo = <Arguments extends unknown[], Result>(
     if (!memoized) {
       memoized = func(...args);
       results.set(key, memoized);
+      // } else {
+      //   console.log("got memoized", key);
     }
     return memoized;
   };
