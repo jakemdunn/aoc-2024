@@ -3,13 +3,12 @@ import run from "aocrunner";
 const parseInput = (rawInput: string) =>
   rawInput.split("\n").map((line) => line.split("-"));
 
-const getPairs = (inputs: string[][], selfInclusive = false) => {
+const getPairs = (inputs: string[][]) => {
   const pairs = new Map<string, Set<string>>();
   inputs.forEach((pair) => {
     pair.forEach((computer, index) => {
       const other = index === 0 ? pair[1] : pair[0];
-      const lookup =
-        pairs.get(computer) ?? new Set(selfInclusive ? [computer] : undefined);
+      const lookup = pairs.get(computer) ?? new Set();
       lookup.add(other);
       pairs.set(computer, lookup);
     });
@@ -47,36 +46,44 @@ const part1 = (rawInput: string) => {
   return triplets.size;
 };
 
-const getNetwork = (
-  key: string,
+const bronKerbosch = (
+  r: Set<string>,
+  p: Set<string>,
+  x: Set<string>,
   pairs: Map<string, Set<string>>,
-  largestNetwork: Set<string>,
 ) => {
-  const network = new Set(pairs.get(key)!.values());
-  for (const node of network) {
-    for (const sibling of network) {
-      if (sibling === node) continue;
-      if (!pairs.get(node)?.has(sibling)) {
-        network.delete(sibling);
-        if (network.size <= largestNetwork.size) {
-          return largestNetwork;
-        }
-      }
-    }
+  if (p.size === 0 && x.size === 0) {
+    return r;
   }
-  return network;
+
+  let max = new Set();
+  for (const v of p) {
+    const candidate = bronKerbosch(
+      r.union(new Set([v])),
+      p.intersection(pairs.get(v)!),
+      x.intersection(pairs.get(v)!),
+      pairs,
+    );
+    if (candidate.size > max.size) max = candidate;
+
+    p.delete(v);
+    x.add(v);
+  }
+  return max;
 };
 
 const part2 = (rawInput: string) => {
   const inputs = parseInput(rawInput);
-  const pairs = getPairs(inputs, true);
+  const pairs = getPairs(inputs);
 
-  let largestNetwork = new Set<string>();
-  pairs.forEach((_, key) => {
-    largestNetwork = getNetwork(key, pairs, largestNetwork);
-  });
+  const lanParty = bronKerbosch(
+    new Set(),
+    new Set(pairs.keys()),
+    new Set(),
+    pairs,
+  );
 
-  return [...largestNetwork.values()].sort().join(",");
+  return [...lanParty.values()].sort().join(",");
 };
 
 const input = `kh-tc

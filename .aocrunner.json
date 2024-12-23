@@ -343,13 +343,13 @@
         "solved": true,
         "result": "1110",
         "attempts": [],
-        "time": 2.727709
+        "time": 2.619916
       },
       "part2": {
         "solved": true,
         "result": "ej,hm,ks,ms,ns,rb,rq,sc,so,un,vb,vd,wd",
         "attempts": [],
-        "time": 2.415
+        "time": 90.350333
       }
     },
     {
