@@ -61,13 +61,11 @@ const part2 = (rawInput: string) => {
     }
   });
   let biggest = 0n;
-  let biggestKey = "";
   options.forEach((values, optionKey) => {
     let size = 0n;
     values.forEach((value) => {
       size += value;
     });
-    biggestKey = size > biggest ? optionKey : biggestKey;
     biggest = size > biggest ? size : biggest;
   });
   return biggest;
