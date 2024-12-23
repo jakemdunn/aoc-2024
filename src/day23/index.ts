@@ -3,6 +3,20 @@ import run from "aocrunner";
 const parseInput = (rawInput: string) =>
   rawInput.split("\n").map((line) => line.split("-"));
 
+const getPairs = (inputs: string[][], selfInclusive = false) => {
+  const pairs = new Map<string, Set<string>>();
+  inputs.forEach((pair) => {
+    pair.forEach((computer, index) => {
+      const other = index === 0 ? pair[1] : pair[0];
+      const lookup =
+        pairs.get(computer) ?? new Set(selfInclusive ? [computer] : undefined);
+      lookup.add(other);
+      pairs.set(computer, lookup);
+    });
+  });
+  return pairs;
+};
+
 const getOptions = (
   sequence: string[],
   pairs: Map<string, Set<string>>,
@@ -19,20 +33,6 @@ const getOptions = (
   nextPairs.forEach((pair) => {
     getOptions([...sequence, pair], pairs, validSequences, length);
   });
-};
-
-const getPairs = (inputs: string[][], selfInclusive = false) => {
-  const pairs = new Map<string, Set<string>>();
-  inputs.forEach((pair) => {
-    pair.forEach((computer, index) => {
-      const other = index === 0 ? pair[1] : pair[0];
-      const lookup =
-        pairs.get(computer) ?? new Set(selfInclusive ? [computer] : undefined);
-      lookup.add(other);
-      pairs.set(computer, lookup);
-    });
-  });
-  return pairs;
 };
 
 const part1 = (rawInput: string) => {
@@ -55,9 +55,10 @@ const getNetwork = (
   const network = new Set(pairs.get(key)!.values());
   for (const node of network) {
     for (const sibling of network) {
+      if (sibling === node) continue;
       if (!pairs.get(node)?.has(sibling)) {
         network.delete(sibling);
-        if (network.size < largestNetwork.size) {
+        if (network.size <= largestNetwork.size) {
           return largestNetwork;
         }
       }
