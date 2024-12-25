@@ -354,16 +354,16 @@
     },
     {
       "part1": {
-        "solved": false,
-        "result": null,
+        "solved": true,
+        "result": "42410633905894",
         "attempts": [],
-        "time": null
+        "time": 0.845583
       },
       "part2": {
-        "solved": false,
-        "result": null,
+        "solved": true,
+        "result": "cqm,mps,vcv,vjv,vwp,z13,z19,z25",
         "attempts": [],
-        "time": null
+        "time": 0.716375
       }
     },
     {
