@@ -368,10 +368,10 @@
     },
     {
       "part1": {
-        "solved": false,
-        "result": null,
+        "solved": true,
+        "result": "3360",
         "attempts": [],
-        "time": null
+        "time": 1.489834
       },
       "part2": {
         "solved": false,
